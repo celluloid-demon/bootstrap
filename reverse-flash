@@ -11,3 +11,15 @@ echo "Copying files FROM desktop..."
 cp "${HOME}/Desktop/bootstrap"     "${DIR}/"
 cp "${HOME}/Desktop/mount-shares"  "${DIR}/"
 cp "${HOME}/Desktop/reverse-flash" "${DIR}/"
+
+##########################
+#                        #
+#     BEGIN GIT SYNC     #
+#                        #
+##########################
+
+cd "$DIR"
+
+git add .
+git commit -m 'reverse-flash'
+git push
