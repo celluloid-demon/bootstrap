@@ -1,9 +1,13 @@
 #!/bin/bash
 
-LINUX_FILES="${HOME}/Desktop/_Linux Files"
+FILES_SUBVOL="${HOME}/Desktop/@files"
+
+GIT="${FILES_SUBVOL}/git"
+
+DIR="${GIT}/bootstrap"
 
 echo "Copying files FROM desktop..."
 
-cp "${HOME}/Desktop/bootstrap"     "${LINUX_FILES}/"
-cp "${HOME}/Desktop/mount-shares"  "${LINUX_FILES}/"
-cp "${HOME}/Desktop/reverse-flash" "${LINUX_FILES}/"
+cp "${HOME}/Desktop/bootstrap"     "${DIR}/"
+cp "${HOME}/Desktop/mount-shares"  "${DIR}/"
+cp "${HOME}/Desktop/reverse-flash" "${DIR}/"
