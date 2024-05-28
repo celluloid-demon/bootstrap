@@ -2,6 +2,8 @@
 
 echo "Copying files to desktop..."
 
-cp "./bootstrap"     "${HOME}/Desktop/"
-cp "./mount-shares"  "${HOME}/Desktop/"
-cp "./reverse-flash" "${HOME}/Desktop/"
+cp "./bootstrap"            "${HOME}/Desktop/"
+cp "./mount-shares"         "${HOME}/Desktop/"
+cp "./reverse-flash"        "${HOME}/Desktop/"
+cp "./README.AdminNotes.md" "${HOME}/Desktop/"
+cp "./Todo.md"              "${HOME}/Desktop/"

@@ -8,9 +8,11 @@ DIR="${GIT}/bootstrap"
 
 echo "Copying files FROM desktop..."
 
-cp "${HOME}/Desktop/bootstrap"     "${DIR}/"
-cp "${HOME}/Desktop/mount-shares"  "${DIR}/"
-cp "${HOME}/Desktop/reverse-flash" "${DIR}/"
+cp "${HOME}/Desktop/bootstrap"              "${DIR}/"
+cp "${HOME}/Desktop/mount-shares"           "${DIR}/"
+cp "${HOME}/Desktop/reverse-flash"          "${DIR}/"
+cp "${HOME}/Desktop/README.AdminNotes.md"   "${DIR}/"
+cp "${HOME}/Desktop/Todo.md"                "${DIR}/"
 
 ##########################
 #                        #
