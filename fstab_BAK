@@ -1,0 +1,21 @@
+
+#
+# /etc/fstab
+# Created by anaconda on Fri May 17 02:06:08 2024
+#
+# Accessible filesystems, by reference, are maintained under '/dev/disk/'.
+# See man pages fstab(5), findfs(8), mount(8) and/or blkid(8) for more info.
+#
+# After editing this file, run 'systemctl daemon-reload' to update systemd
+# units generated from this file.
+#
+
+# Note: Most mount options apply to the whole filesystem and only options in the first mounted subvolume will take effect. This is due to lack of implementation and may change in the future. This means that (for example) you can’t set per-subvolume nodatacow, nodatasum, or compress using mount options. This should eventually be fixed, but it has proved to be difficult to implement correctly within the Linux VFS framework.
+
+# Note: Mount options are processed in order, only the last occurrence of an option takes effect and may disable other options due to constraints (see e.g. nodatacow and compress). The output of mount command shows which options have been applied.
+
+UUID=c5500751-12d1-4e31-a8f7-60faa5e7952e /                       btrfs   subvol=root,compress=zstd:3,noatime 0 0
+UUID=cfeb44a0-81a1-4006-93d6-6b2619417118 /boot                   ext4    defaults        1 2
+#UUID=c5500751-12d1-4e31-a8f7-60faa5e7952e /home                   btrfs   subvol=home,compress=zstd:1 0 0
+UUID=de5d8f7c-8d94-4497-a092-c9899a4c2f8b /home                   btrfs   subvol=@home,compress=zstd:3,noatime 0 0
+UUID=7d948512-29e8-43f1-990c-84c4ca43f28a /cache                  btrfs   subvol=@cache,compress=zstd:3,noatime 0 0

@@ -1,0 +1,1185 @@
+#!/bin/bash
+
+# Description: Helper snippets to get Fedora up and running.
+
+# Exit on error
+set -e
+
+# Declare constants
+APPLICATIONS="${HOME}/Applications"
+CACHE="/cache/jonathan"
+GIT="${HOME}/git"
+
+# Declare switches (to control program flow)
+
+# Valid switches:
+
+#   FEDORA
+#   STEAMOS
+
+OS="FEDORA"
+
+if [ "$OS" = "FEDORA" ]; then
+
+    mkdir -p "${CACHE}/Applications"
+    mkdir -p "${CACHE}/git"
+
+    if [ ! -d "$APPLICATIONS" ]; then
+
+        ln -s "${CACHE}/Applications" "${HOME}/Applications"
+
+    fi
+
+    if [ ! -d "$GIT" ]; then
+
+        ln -s "${CACHE}/git" "${HOME}/git"
+
+    fi
+
+fi
+
+# Initialize flags with default values
+FLAG_steamos_btrfs_installed=0
+FLAG_password_set=0
+FLAG_restart_required=0
+FLAG_did_tweak_cpu=0
+FLAG_did_tweak_mglru=0
+FLAG_did_tweak_watchdog=0
+FLAG_did_tweak_memory=0
+FLAG_did_tweak_io_scheduler=0
+FLAG_did_tweak_dragon=0
+FLAG_steamapps_subvol_exists=0
+FLAG_git_configured=0
+FLAG_shared_config_nix_exists=0
+FLAG_package_management_helper_scripts_exists=0
+FLAG_btrfs_snp_installed=0
+FLAG_kvm_configured=0
+FLAG_images_subvol_exists=0
+FLAG_emudeck_installed=0
+FLAG_home_btrfs_configured=0
+FLAG_ssh_configured=0
+FLAG_rpmfusion_configured=0
+
+install-rpmfusion-and-multimedia() {
+
+    # To enable access to both the free and the nonfree repository use the following command:
+
+    sudo dnf install -y https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
+
+    # On Fedora, we default to use the openh264 library, so you need the repository to be explicitely enabled:
+
+    sudo dnf config-manager --enable fedora-cisco-openh264
+
+    # RPM Fusion repositories also provide Appstream metadata to enable users to install packages using Gnome Software/KDE Discover. Please note that these are a subset of all packages since the metadata are only generated for GUI packages. The following command will install the required group of packages:
+
+    sudo dnf update -y @core
+
+    # Fedora ffmpeg-free works most of the time, but one will experience version missmatch from time to time. Switch to the rpmfusion provided ffmpeg build that is better supported:
+
+    sudo dnf swap ffmpeg-free ffmpeg --allowerasing
+
+    # The following command will install the complements multimedia packages needed by gstreamer enabled applications:
+
+    sudo dnf update -y @multimedia --setopt="install_weak_deps=False" --exclude=PackageKit-gstreamer-plugin
+
+    # The following command will install the sound-and-video complement packages needed by some applications:
+
+    sudo dnf install -y @sound-and-video
+    sudo dnf update  -y @sound-and-video
+
+    # Using the rpmfusion-nonfree section:
+
+    sudo dnf install -y intel-media-driver
+
+    # You need to have the libdvdcss package, to install libdvdcss you need enable tainted repos:
+
+    sudo dnf install -y rpmfusion-free-release-tainted
+    sudo dnf install -y libdvdcss
+
+    # Tainted nonfree is dedicated to non-FLOSS packages without a clear redistribution status by the copyright holder. But is allowed as part of hardware inter-operability between operating systems in some countries:
+
+    sudo dnf install -y rpmfusion-nonfree-release-tainted
+    sudo dnf --repo=rpmfusion-nonfree-tainted install -y "*-firmware"
+
+    FLAG_restart_required=1
+
+}
+
+check-rpmfusion() {
+
+    repo_list=$(sudo dnf repolist)
+
+    if echo "$repo_list" | grep -q "rpmfusion"; then
+
+        FLAG_rpmfusion_configured=1
+
+    fi
+
+}
+
+configure-ssh() {
+
+    mkdir -p "${HOME}/Documents/SSH"
+
+    ln -s "Documents/SSH"  "${HOME}/.ssh"
+
+}
+
+check-ssh() {
+
+    dir="${HOME}/.ssh"
+
+    if [ -d "$dir" ]; then
+
+        FLAG_ssh_configured=1
+
+    fi
+
+}
+
+check-emudeck() {
+
+    emudeck="EmuDeck.desktop"
+
+    if [ -f "${APPLICATIONS}/EmuDeck/${emudeck}" ]; then
+
+        FLAG_emudeck_installed=1
+
+    fi
+
+}
+
+check-images-subvol() {
+
+    # read: it's useful to have a single subvol for images so you can set +C and just have new child subvols inherit that property
+
+    images_subvol="${HOME}/@images"
+
+    if [ -d "$images_subvol" ]; then
+
+        FLAG_images_subvol_exists=1
+
+    fi
+
+}
+
+install-package-management-helper-scripts() {
+
+    repo_name="package-management-helper-scripts"
+
+    cd "$GIT" && git clone "https://www.github.com/celluloid-demon/${repo_name}"
+
+}
+
+check-package-management-helper-scripts() {
+
+    repo_name="package-management-helper-scripts"
+
+    if [ -d "${GIT}/${repo_name}" ]; then
+
+        FLAG_package_management_helper_scripts_exists=1
+
+    fi
+
+}
+
+install-shared-config-nix() {
+
+    url="https://www.github.com/celluloid-demon/shared-config-nix"
+
+    cd "$APPLICATIONS" && git clone "$url"
+
+    cd "${HOME}"
+    ln -s "Applications/shared-config-nix/home/bin" bin
+    ln -s "Applications/shared-config-nix/home/usr" usr
+    ln -s "Applications/shared-config-nix/dot-files/bash_aliases" .bash_aliases
+
+# source .bash_aliases through .bashrc
+cat << EOF | tee -a "${HOME}/.bashrc"
+
+if [ -f "\${HOME}/.bash_aliases" ]; then
+
+    . "\${HOME}/.bash_aliases"
+
+fi
+
+EOF
+
+}
+
+check-shared-config-nix() {
+
+    dir="${APPLICATIONS}/shared-config-nix"
+
+    if [ -d "$dir" ]; then
+
+        FLAG_shared_config_nix_exists=1
+
+    fi
+
+}
+
+check-git-config() {
+
+    # (temporarily disable exit on error)
+    set +e
+    git_user_name="$(git config --global --get user.name)"
+    set -e
+
+    if [ ! -z "$git_user_name" ]; then
+
+        FLAG_git_configured=1
+
+    fi
+
+}
+
+configure-git() {
+
+    echo
+
+    # Prompt for user's name
+    read -p "Enter your git name (this can just be your first name, lower-case): " name
+
+    # Prompt for user's email
+    read -p "Enter your GitHub email (recommend GitHub ***private*** email): " email
+
+    # Set the username in Git configuration
+    git config --global user.name "$name"
+
+    # Set the commit email address in Git configuration
+    git config --global user.email "$email"
+
+}
+
+check-kvm-config() {
+
+    config="/etc/libvirt/libvirtd.conf"
+    search="#[[:space:]]*unix_sock_rw_perms = \"0770\""
+
+    # Read: If comment "# unix_sock_rw_perms..." found, assume config was successfully edited
+    if ! grep -qE "$search" "$config"; then
+
+        FLAG_kvm_configured=1
+
+    fi
+
+}
+
+configure-kvm() {
+
+    config="/etc/libvirt/libvirtd.conf"
+
+    sudo sed -i 's/#\s*unix_sock_group = "libvirt"/unix_sock_group = "libvirt"/' "$config"
+    sudo sed -i 's/#\s*unix_sock_rw_perms = "0770"/unix_sock_rw_perms = "0770"/' "$config"
+
+    sudo usermod -a -G libvirt $(whoami)
+
+    sudo systemctl start  libvirtd.service
+    sudo systemctl start  virtlogd.service
+    sudo systemctl enable libvirtd.service
+    sudo systemctl enable virtlogd.service
+
+    sudo virsh net-start     default
+    sudo virsh net-autostart default
+
+    FLAG_restart_required=1
+
+}
+
+check-steamos-tweak-dragon() {
+
+    grub_config=$(cat /etc/default/grub)
+
+    if grep -q "mitigations=off" <<< "$grub_config"; then
+
+        FLAG_did_tweak_dragon=1
+
+    fi
+
+}
+
+check-steamos-tweak-io-scheduler() {
+
+    rules_file="/etc/udev/rules.d/64-ioschedulers.rules"
+
+    if [ -f "$rules_file" ]; then
+
+        FLAG_did_tweak_io_scheduler=1
+
+    fi
+
+}
+
+check-steamos-tweak-memory() {
+
+    conf_file="/etc/security/limits.d/memlock.conf"
+
+    if [ -f "$conf_file" ]; then
+
+        FLAG_did_tweak_memory=1
+
+    fi
+
+}
+
+check-steamos-tweak-watchdog() {
+
+    grub_config=$(cat /etc/default/grub)
+
+    if grep -q "nowatchdog nmi_watchdog=0" <<< "$grub_config"; then
+
+        FLAG_did_tweak_watchdog=1
+
+    fi
+
+}
+
+check-steamos-tweak-mglru() {
+
+    conf_file="/etc/tmpfiles.d/mglru.conf"
+
+    if [ -f "$conf_file" ]; then
+
+        FLAG_did_tweak_mglru=1
+
+    fi
+
+}
+
+check-password() {
+
+    if [ "$OS" = "FEDORA" ]; then
+
+        password_status=$(sudo passwd --status "$USER" | awk '{print $2}')
+
+        if [ "$password_status" = "PS" ]; then FLAG_password_set=1; fi
+
+    fi
+
+    if [ "$OS" = "STEAMOS" ]; then
+
+        password_status=$(passwd --status | awk '{print $2}')
+
+        if [ "$password_status" = "P" ]; then FLAG_password_set=1; fi
+
+    fi
+
+}
+
+check-steamos-tweak-cpu() {
+
+    service_file="/etc/systemd/system/cpu_performance.service"
+
+    if [ -f "$service_file" ]; then
+
+        FLAG_did_tweak_cpu=1
+
+    fi
+
+}
+
+install-steamos-tweak-cpu() {
+
+    # Unfortunately, even the newest (at the time of writing) SteamOS 3.5 release still ships with a CPU governor called schedutil, which is less than desirable if you want a rather even & consistent frame-pacing, because of the erratic downclocking behavior it has become famous for in Linux enthusiast circles.
+
+    # On the other hand, the performance governor does exactly what it says on the tin:
+
+    # "It always requests the highest performance state of the CPU that is available, thus either preventing or at the very least reducing many of the dreaded frame-time spikes plaguing the schedutil governor."
+
+    # But what about my temperatures — is it going to melt my Steam Deck ???
+
+    # The short answer is: No, it won’t!
+
+    # The slighty longer answer:
+
+    # All modern CPUs (including the Steam Deck’s AMD Zen 2 architecture) have so-called “sleep states”, which allow the CPU to almost completely power-off certain parts of individual cores at any given opportunity, which ensures they save the most amount of energy & heat, way more so than what the simplistic downclocking strategy could ever hope to achieve.
+
+    # source: https://medium.com/@a.b.t./here-are-some-possibly-useful-tweaks-for-steamos-on-the-steam-deck-fcb6b571b577
+
+cat << EOF | sudo tee /etc/systemd/system/cpu_performance.service
+[Unit]
+Description=CPU performance governor
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/cpupower frequency-set -g performance
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    sudo systemctl daemon-reload
+    sudo systemctl enable cpu_performance.service
+
+    FLAG_restart_required=1
+
+}
+
+install-steamos-tweak-mglru() {
+
+    # This is one of the most recent additions to the upstream Linux kernel, literally just merged for the 6.1 LTS (Long-Term Support) version which the SteamOS 3.5 release switched towards over the 5.13 kernel used previously.
+
+    # It is a feature developed by a Google engineer to dramatically improve upon the memory management of Linux, and is already in use on both Android & ChromeOS.
+
+    # However, the upstream kernel doesn’t enable this functionality by default, yet.
+
+    # source: https://medium.com/@a.b.t./here-are-some-possibly-useful-tweaks-for-steamos-on-the-steam-deck-fcb6b571b577
+
+cat << EOF | sudo tee /etc/tmpfiles.d/mglru.conf
+w /sys/kernel/mm/lru_gen/enabled - - - - 7
+w /sys/kernel/mm/lru_gen/min_ttl_ms - - - - 0
+EOF
+
+    FLAG_restart_required=1
+
+}
+
+install-steamos-tweak-watchdog() {
+
+    # A watchdog timer in computer terminology is either a piece of hardware or software which can be used for both detection & recovery of malfunctions.
+
+    # These are critical components for enterprise devices in order to ensure that they meet high-availability demands, however the Steam Deck is none of that.
+
+    # Therefore, disabling the watchdog timers has no ill-effects; to the contrary, it can actually help the Steam Deck by not generating any interrupt requests of its own.
+
+    # source: https://medium.com/@a.b.t./here-are-some-possibly-useful-tweaks-for-steamos-on-the-steam-deck-fcb6b571b577
+
+    sudo sed -i 's/\bGRUB_CMDLINE_LINUX_DEFAULT="\b/&nowatchdog nmi_watchdog=0 /' /etc/default/grub
+
+    sudo grub-mkconfig -o /boot/efi/EFI/steamos/grub.cfg
+
+    FLAG_restart_required=1
+
+}
+
+install-steamos-tweak-memory() {
+
+    # This is an optimization which will especially help RPCS3, which is an emulator for Sony’s PlayStation 3 console.
+
+    # In fact, when you run RPCS3 from a terminal on Linux, it will complain with the following message:
+
+    # "Warning message: Failed to set RLIMIT_MEMLOCK size to 2 GiB. Try to update your system configuration."
+
+    # By default, the Linux kernel sets this particular value to just 64KiB, which is the maximum amount of memory the kernel will lock within a single operation, and the following is what one of the main developers of RPCS3 had to say on the topic:
+
+    # "64K is some outdated over-precautious limitation from 1990’s era."
+
+    # Well, okay then, let’s increase our limit to 2GiB in order to advance into the 2020’s era:
+
+    # source: https://medium.com/@a.b.t./here-are-some-possibly-useful-tweaks-for-steamos-on-the-steam-deck-fcb6b571b577
+
+cat << EOF | sudo tee /etc/security/limits.d/memlock.conf
+* hard memlock 2147484
+* soft memlock 2147484
+EOF
+
+    FLAG_restart_required=1
+
+}
+
+install-steamos-tweak-io-scheduler() {
+
+    # An I/O-scheduler tries to efficiently balance both read & write performance as well as the latency of access times to block devices such as a NVMe SSD, eMMC storage or even a microSD card.
+
+    # SteamOS has three different I/O-schedulers to choose from. [Technically, there’s also the option of having no I/O-scheduler at all.]
+
+    # By default, it uses mq-deadline, which is a port of the older deadline scheduler from a time when the block subsystem of the Linux kernel only had a single queue to work with, towards the more efficient multi-queue design of contemporary Linux.
+
+    # The other two remaining options are called bfq & kyber:
+
+    # BFQ has a strict focus on providing low-latency I/O-operations even under heavy loads; however, that achievement comes at the cost of reduced throughput performance, in particular when it comes to write speeds.
+
+    # Kyber on the other hand was developed by Facebook for use on their high-end storage servers. Therefore, it has a rather simple design that is light on the strain it puts on the CPU.
+
+    # In practice, I found Kyber to be the best all-rounder among the three, since it allows the diverse storage devices to both reach the maximum capacity of their respective throughput (i.e. read & write) speeds while at the same time still providing low enough latencies even among high I/O pressure.
+
+    # source: https://medium.com/@a.b.t./here-are-some-possibly-useful-tweaks-for-steamos-on-the-steam-deck-fcb6b571b577
+
+cat << EOF | sudo tee /etc/udev/rules.d/64-ioschedulers.rules
+ACTION=="add|change", KERNEL=="nvme[0-9]*", ATTR{queue/scheduler}="kyber"
+ACTION=="add|change", KERNEL=="sd[a-z]|mmcblk[0-9]*", ATTR{queue/rotational}=="0", ATTR{queue/scheduler}="kyber"
+EOF
+
+    FLAG_restart_required=1
+
+}
+
+install-steamos-tweak-dragon() {
+
+    # Disabling CPU security flaw mitigations
+
+    # (a.k.a. Here Be Dragons!)
+
+    # Let me start by explicitly stating that the change described in this segment has the hypothetical potential of becoming a security risk for SteamOS, so caveat emptor!
+
+    # Having said that, I am limiting my personal risk exposure by only disabling the CPU mitigations when my Steam Deck is in offline mode.
+
+    # This has the added benefit of preserving battery life, because an active WLAN/WiFi connection requires energy to operate, obviously.
+
+    # And since I exclusively play offline single-player games which don’t require an active Internet connection anyway, disabling the costly CPU mitigations is viable for me personally.
+
+    # Now, disabling the security flaw mitigations can boost the performance of SteamOS quite a bit on Steam Deck’s AMD Zen 2 CPU architecture, especially with the most recent hardware bug named Retbleed.
+
+    # For a good demonstration of the current penalty and the potential performance uplift by deactivating the mitigations on Zen 2 CPUs, I can once again point you towards this benchmark done by Phoronix:
+
+    # https://www.phoronix.com/review/amd-3950x-retbleed
+
+    # Thus, if you personally are comfortable with running an operating system with a known security risk that theoretically could be exploited, then the following command will have you covered:
+
+    # source: https://medium.com/@a.b.t./here-are-some-possibly-useful-tweaks-for-steamos-on-the-steam-deck-fcb6b571b577
+
+    sudo sed -i 's/\bGRUB_CMDLINE_LINUX_DEFAULT="\b/&mitigations=off /' /etc/default/grub
+
+    sudo grub-mkconfig -o /boot/efi/EFI/steamos/grub.cfg
+
+    FLAG_restart_required=1
+
+}
+
+check-home-btrfs() {
+
+    home_mount="$(cat /proc/mounts | grep /home)"
+
+    if echo "$home_mount" | grep -q btrfs; then
+
+        FLAG_home_btrfs_configured=1
+
+    fi
+
+}
+
+install-steamos-btrfs() {
+
+    # WARNING: Recommended to do this FIRST so downstream package / flatpak installations are able to take advantage of zstd compression.
+
+    t="$(mktemp -d)"
+
+    curl -sSL https://gitlab.com/popsulfr/steamos-btrfs/-/archive/main/steamos-btrfs-main.tar.gz | tar -xzf - -C "$t" --strip-components=1
+
+    "$t/install.sh"
+
+    rm -rf "$t"
+
+    # Let steamos-btrfs do its thing
+    exit 0
+
+}
+
+from-pacman-install-packages() {
+
+    sudo steamos-readonly disable
+
+    sudo pacman-key --init
+    sudo pacman-key --populate archlinux
+    sudo pacman-key --populate holo
+
+    # WARNING: Steamdeck rootfs partition only has ~5G allocated for it, be VERY judicious with what you add here to avoid bricking your system!
+
+    # NOTE: Arch doesn't use service scripts, so 'null' is the answer to your question. However, since you want to use vmware, it needs to put it's scripts somewhere, and /etc/init.d is as good a place as any.
+
+    PACKAGES="byobu krfb tldr"
+    PACKAGES_AUR="base-devel go"
+    PACKAGES_VMWARE="dkms libaio gcr fuse2 gtkmm linux-neptune-headers ncurses libcanberra pcsclite"
+
+    # NOTE: The vmware-workstation PKGBUILD contains instructions on how to avoid the package having a dependency on vmware-keymaps.
+
+    # WARNING: Steam Deck repos might not ship the latest linux headers matching your kernel version, you can download the up-to-date version of your headers for vmware manually and install via `sudo pacman -U <linux_headers_archive>`
+
+    # WARNING: To download headers manually:
+    # WARNING: https://steamdeck-packages.steamos.cloud/archlinux-mirror/jupiter-main/os/x86_64/
+    # WARNING: source:
+    # WARNING: https://www.reddit.com/r/SteamDeck/comments/y6uudu/installing_kernel_headers/
+
+#     PACKAGES_KVM="dnsmasq libvirt qemu-base virt-manager"
+#     PACKAGES_KVM_TPM="swtpm"
+
+    sudo pacman --needed --noconfirm -Syu $PACKAGES $PACKAGES_AUR $PACKAGES_VMWARE
+
+    sudo steamos-readonly enable
+
+}
+
+from-dnf-install-packages() {
+
+    # WARNING: Fedora rootfs partition only has ~20G allocated for it, you've got wiggle room but you should still be relying on flatpaks for most apps
+
+    PACKAGES="byobu code git-core kio-gdrive krfb podman pv rclone tldr tree"
+
+#     todo add package lists for development (NOT kvm, you already have hyper-v)
+
+    # VSCode
+    set +e
+    if ! which code >/dev/null 2>&1; then
+
+        sudo rpm --import https://packages.microsoft.com/keys/microsoft.asc
+
+        echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com/yumrepos/vscode\nenabled=1\ngpgcheck=1\ngpgkey=https://packages.microsoft.com/keys/microsoft.asc" | sudo tee /etc/yum.repos.d/vscode.repo > /dev/null
+
+    fi
+    set -e
+
+    sudo dnf upgrade -y
+    sudo dnf install -y $PACKAGES
+
+    sudo dnf groupinstall -y "Development Tools" "Development Libraries"
+
+}
+
+install-flatpaks() {
+
+    if [ $OS = FEDORA ]; then
+
+        flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+
+    fi
+
+    # WARNING: Ran into issues with these
+    FLATPAKS_PROBLEM="
+
+    com.play0ad.zeroad
+    org.kde.kmymoney
+
+    "
+
+    FLATPAKS_COMMON="
+
+    com.github.flxzt.rnote
+    com.github.jeromerobert.pdfarranger
+    com.github.tchx84.Flatseal
+    com.google.Chrome
+    com.toolstack.Folio
+    com.valvesoftware.SteamLink
+    com.visualstudio.code-oss
+
+    de.haeckerfelix.Shortwave
+    fr.handbrake.ghb
+    io.github.OpenToonz
+    io.mpv.Mpv
+    io.podman_desktop.PodmanDesktop
+    net.ankiweb.Anki
+    net.davidotek.pupgui2
+    net.lutris.Lutris
+    net.mediaarea.MediaInfo
+
+    org.audacityteam.Audacity
+    org.blender.Blender
+    org.bunkus.mkvtoolnix-gui
+    org.freecadweb.FreeCAD
+    org.gimp.GIMP
+    org.gnome.Boxes
+    org.gnome.Lollypop
+    org.kde.kdenlive
+    org.kde.krita
+    org.kde.kstars
+    org.kde.ksudoku
+    org.kde.skanpage
+    org.libreoffice.LibreOffice
+    org.openmw.OpenMW
+    org.qbittorrent.qBittorrent
+    org.wesnoth.Wesnoth/x86_64/stable
+
+    "
+
+    FLATPAKS_STEAMOS_ONLY="
+
+    org.mozilla.firefox
+    org.kde.kcalc
+    org.kde.kolourpaint
+    org.kde.konversation
+    org.kde.kpat
+    org.kde.kwalletmanager5
+
+    "
+
+#   (note: discord flatpak deprecated in favor of "full" linux version from website, with screen-sharing, etc)
+#   flatpak install flathub com.discordapp.Discord -y
+
+    if [ $OS = FEDORA ]; then
+
+        flatpak update --user -y
+        flatpak install --user flathub $FLATPAKS_COMMON -y
+
+    fi
+
+    if [ $OS = STEAMOS ]; then
+
+        # NOTE: steamOS installs flatpaks to user's home directory by default
+        flatpak update -y
+        flatpak install flathub $FLATPAKS_COMMON $FLATPAKS_STEAMOS_ONLY -y
+
+    fi
+
+}
+
+from-repo-install-btrfs-snp() {
+
+    set +e
+    if ! which btrfs-snp >/dev/null 2>&1; then
+
+        set -e
+
+        url="https://www.github.com/celluloid-demon/btrfs-snp"
+        repo_name="$(basename "$url" .git)"
+
+        cd "$APPLICATIONS"
+
+        git clone "$url"
+
+        cd "$repo_name"
+
+        # unlock system
+        if [ $OS = STEAMOS ]; then sudo steamos-readonly disable; fi
+
+        ./flash
+
+        # lock system
+        if [ $OS = STEAMOS ]; then sudo steamos-readonly enable; fi
+
+        FLAG_restart_required=1
+
+    fi
+    set -e
+
+}
+
+from-repo-install-btrfs-sync() {
+
+    set +e
+    if ! which btrfs-sync >/dev/null 2>&1; then
+
+        set -e
+
+        url="https://www.github.com/celluloid-demon/btrfs-sync"
+        repo_name="$(basename "$url" .git)"
+
+        cd "$APPLICATIONS"
+
+        git clone "$url"
+
+        cd "$repo_name"
+
+        # unlock system
+        if [ $OS = STEAMOS ]; then sudo steamos-readonly disable; fi
+
+        ./flash
+
+        # lock system
+        if [ $OS = STEAMOS ]; then sudo steamos-readonly enable; fi
+
+        FLAG_restart_required=1
+
+    fi
+    set -e
+
+}
+
+from-web-install-discord() {
+
+    if [ ! -d "${APPLICATIONS}/Discord" ]; then
+
+        url="https://discord.com/api/download?platform=linux&format=tar.gz"
+
+        wget -O "${HOME}/Downloads/discord.tar.gz" "$url"
+
+        tar -xvzf "${HOME}/Downloads/discord.tar.gz" -C "${APPLICATIONS}/"
+
+        desktop_file="discord.desktop"
+
+        mkdir -p "${HOME}/.local/share/applications"
+
+        cp "${APPLICATIONS}/Discord/${desktop_file}" "${HOME}/.local/share/applications/"
+
+        if [ $OS = FEDORA ]; then
+        sed -i 's|^Exec=.*|Exec=/home/jonathan/Applications/Discord/Discord|g'     "${HOME}/.local/share/applications/${desktop_file}"
+        sed -i 's|^Icon=.*|Icon=/home/jonathan/Applications/Discord/discord.png|g' "${HOME}/.local/share/applications/${desktop_file}"
+        fi
+
+        if [ $OS = STEAMOS ]; then
+        sed -i 's|^Exec=.*|Exec=/home/deck/Applications/Discord/Discord|g'     "${HOME}/.local/share/applications/${desktop_file}"
+        sed -i 's|^Icon=.*|Icon=/home/deck/Applications/Discord/discord.png|g' "${HOME}/.local/share/applications/${desktop_file}"
+        fi
+
+    fi
+
+}
+
+from-web-get-emudeck-installer() {
+
+    # grabbing essentially another bootstrap file, we don't need to get too fancy
+
+    url="https://www.emudeck.com/EmuDeck.desktop"
+
+    cd "${HOME}/Desktop" && wget "$url"
+
+}
+
+check-steamapps-subvol() {
+
+    steam_folder="/home/deck/.local/share/Steam"
+    steamapps_subvol_name="@steamapps"
+
+    if [ -d "${steam_folder}/${steamapps_subvol_name}" ]; then
+
+        FLAG_steamapps_subvol_exists=1
+
+    fi
+
+}
+
+create-steamapps-subvol() {
+
+    steam_folder="/home/deck/.local/share/Steam"
+    steamapps_folder_name="steamapps"
+    steamapps_subvol_name="@steamapps"
+
+    # make sure steam isn't running while we're doing this
+    echo
+    echo "  WARNING: Please take a moment to close Steam (press enter when ready to procede)"
+    read response
+
+    # (create steamapps folder if missing to satisfy logic because I'm lazy)
+    if [ ! -d "${steam_folder}/${steamapps_folder_name}" ]; then mkdir -p "${steam_folder}/${steamapps_folder_name}"; fi
+
+    sudo btrfs subvolume create "${steam_folder}/${steamapps_subvol_name}"
+
+    # NOTE: Trailing slashes are significant!
+    sudo rsync -av "${steam_folder}/${steamapps_folder_name}/" "${steam_folder}/${steamapps_subvol_name}/"
+
+    sudo rm -rf "${steam_folder}/${steamapps_folder_name}"
+
+    ln -s "${steam_folder}/${steamapps_subvol_name}" "${steam_folder}/${steamapps_folder_name}"
+
+}
+
+create-images-subvol() {
+
+    libvirt_folder="/var/lib/libvirt"
+    images_folder_name="images"
+    images_subvol_name="@images"
+
+    sudo btrfs subvolume create "${HOME}/${images_subvol_name}"
+
+    #######################################
+    #                                     #
+    #          !!! IMPORTANT !!!          #
+    #                                     #
+    #######################################
+    sudo chattr +C "${HOME}/${images_subvol_name}"
+
+    # NOTE: Trailing slashes are significant!
+    sudo rsync -av "${libvirt_folder}/${images_folder_name}/" "${HOME}/${images_subvol_name}/"
+
+    sudo rm -rf "${libvirt_folder}/${images_folder_name}"
+
+    sudo ln -s "${HOME}/${images_subvol_name}" "${libvirt_folder}/${images_folder_name}"
+
+}
+
+# main logic
+main() {
+
+    check-password
+
+    if [ $FLAG_password_set -eq 1 ]; then
+
+        echo "password detected..."
+
+    else
+
+        echo "password not detected!"
+
+        passwd
+
+    fi
+
+    check-home-btrfs # hard requirement
+
+    if [ $FLAG_home_btrfs_configured -eq 1 ]; then
+
+        echo "/home btrfs detected..."
+
+    elif [ $OS = FEDORA ]; then
+
+        echo "/home btrfs NOT detected (out of scope of this bootstrap, come back when it's done)"
+        exit 1
+
+    elif [ $OS = STEAMOS ]; then
+
+        echo "/home btrfs NOT detected, do you wish to install steamos-btrfs? (y/n): "
+        read response
+
+        if [ "$response" = "y" ]; then
+
+            # (SEE WARNING)
+            install-steamos-btrfs
+
+        elif [ "$response" = "n" ]; then
+
+            echo "WARNING: steamos-btrfs required for optimizations, terminating..."
+            exit 1
+
+        else
+
+            echo "Invalid response, terminating..."
+            exit 1
+
+        fi
+
+    fi
+
+    if [ $OS = STEAMOS ]; then
+
+        check-steamos-tweak-cpu
+        check-steamos-tweak-mglru
+        check-steamos-tweak-watchdog
+        check-steamos-tweak-memory
+        check-steamos-tweak-io-scheduler
+        check-steamos-tweak-dragon
+
+        if [ $FLAG_did_tweak_cpu -eq 1 ]; then
+
+            echo "steam-os cpu tweak detected..."
+
+        else
+
+            echo "steam os cpu tweak NOT detected, installing..."
+
+            install-steamos-tweak-cpu
+
+        fi
+
+        if [ $FLAG_did_tweak_mglru -eq 1 ]; then
+
+            echo "steam-os mglru tweak detected..."
+
+        else
+
+            echo "steam-os mglru tweak NOT detected, installing..."
+
+            install-steamos-tweak-mglru
+
+        fi
+
+        if [ $FLAG_did_tweak_watchdog -eq 1 ]; then
+
+            echo "steam-os watchdog tweak detected..."
+
+        else
+
+            echo "steam-os watchdog tweak NOT detected, installing..."
+
+            install-steamos-tweak-watchdog
+
+        fi
+
+        if [ $FLAG_did_tweak_memory -eq 1 ]; then
+
+            echo "steam-os memory tweak detected..."
+
+        else
+
+            echo "steam-os memory tweak NOT detected, installing..."
+
+            install-steamos-tweak-memory
+
+        fi
+
+        if [ $FLAG_did_tweak_io_scheduler -eq 1 ]; then
+
+            echo "steam-os io scheduler tweak detected..."
+
+        else
+
+            echo "steam-os io scheduler tweak NOT detected, installing..."
+
+            install-steamos-tweak-io-scheduler
+
+        fi
+
+        if [ $FLAG_did_tweak_dragon -eq 1 ]; then
+
+            echo "steam-os dragon tweak detected..."
+
+        else
+
+            echo "steam-os dragon tweak NOT detected, installing..."
+
+            install-steamos-tweak-dragon
+
+        fi
+
+        check-steamapps-subvol
+
+        if [ $FLAG_steamapps_subvol_exists -eq 1 ]; then
+
+            echo "steamapps subvolume detected..."
+
+        else
+
+            echo "steamapps subvolume NOT detected, creating..."
+
+            create-steamapps-subvol
+
+        fi
+
+    fi
+
+    ######################################
+    #                                    #
+    #          STAGE 1 PACKAGES          #
+    #                                    #
+    ######################################
+
+    if [ $OS = FEDORA ];  then
+
+        check-rpmfusion
+
+        if [ $FLAG_rpmfusion_configured -eq 0 ]; then install-rpmfusion-and-multimedia; fi
+
+        from-dnf-install-packages
+
+    fi
+
+    if [ $OS = STEAMOS ]; then from-pacman-install-packages; fi
+
+    install-flatpaks
+
+    #####################################
+    #                                   #
+    #          STAGE 1 CLEANUP          #
+    #                                   #
+    #####################################
+
+    check-git-config
+
+    if [ $FLAG_git_configured -eq 1 ]; then
+
+        echo "git config detected..."
+
+    else
+
+        echo "git config NOT detected, initializing..."
+
+        configure-git
+
+    fi
+
+    ###############################################
+    #                                             #
+    #          STAGE 2 PACKAGES                   #
+    #                                             #
+    #            DEPENDS ON: git command          #
+    #                                             #
+    ###############################################
+
+    from-repo-install-btrfs-snp
+
+    from-repo-install-btrfs-sync
+
+    from-web-install-discord
+
+    check-shared-config-nix
+
+    if [ $FLAG_shared_config_nix_exists -eq 1 ]; then
+
+        echo "shared-config-nix detected..."
+
+    else
+
+        echo "shared-config-nix NOT detected, initializing..."
+
+        install-shared-config-nix
+
+    fi
+
+    check-ssh
+
+    if [ $FLAG_ssh_configured -eq 1 ]; then
+
+        echo "ssh configured..."
+
+    else
+
+        echo "ssh NOT configured, initializing..."
+
+        configure-ssh
+
+    fi
+
+    check-package-management-helper-scripts
+
+    if [ $FLAG_package_management_helper_scripts_exists -eq 1 ]; then
+
+        echo "package-management-helper-scripts detected..."
+
+    else
+
+        echo "package-management-helper-scripts NOT detected, initializing..."
+
+        install-package-management-helper-scripts
+
+    fi
+
+#     check-kvm-config
+#
+#     if [ $FLAG_kvm_configured -eq 0 ]; then
+#
+#         echo "kvm config changes not detected, updating..."
+#
+#         configure-kvm
+#
+#     fi
+
+    if [ $OS = STEAMOS ]; then
+
+        check-images-subvol
+
+        if [ $FLAG_images_subvol_exists -eq 0 ]; then
+
+            echo "images subvolume not detected, creating..."
+
+            create-images-subvol
+
+        fi
+
+    fi
+
+#     todo write the complete check once you know what to look for in a typical installation...
+#     check-emudeck
+#
+#     if [ $FLAG_emudeck_installed -eq 0 ]; then
+#
+#         echo "emudeck not detected, pulling installer..."
+#
+#         from-web-get-emudeck-installer
+#
+#     fi
+
+    if [ $FLAG_restart_required -eq 1 ]; then
+
+        echo
+        echo "  ######################################################"
+        echo "  #                                                    #"
+        echo "  #     WARNING: System restart highly encouraged!     #"
+        echo "  #                                                    #"
+        echo "  ######################################################"
+        echo
+
+    fi
+
+    echo
+    echo "  ...completed successfully!"
+    echo
+
+}
+
+main
+
+
+
+
+
+
+
+
+
+

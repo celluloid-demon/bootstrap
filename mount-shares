@@ -1,0 +1,24 @@
+#!/bin/bash
+
+# Exit on error
+set -e
+
+# Mounts the share named foo to /tmp/foo:
+# /usr/bin/vmhgfs-fuse .host:/foo /tmp/foo -o subtype=vmhgfs-fuse,allow_other
+
+# source: https://docs.vmware.com/en/VMware-Workstation-Pro/17/com.vmware.ws.using.doc/GUID-AB5C80FE-9B8A-4899-8186-3DB8201B1758.html
+
+dev="/Linux Files"
+mount="${HOME}/Desktop/_Linux Files"
+
+mkdir -p "$mount"
+
+/usr/bin/vmhgfs-fuse .host:"$dev" "$mount" -o subtype=vmhgfs-fuse,allow_other
+# /usr/bin/vmhgfs-fuse .host:"/Linux Files" "/home/jonathan/Desktop/Linux Files" -o subtype=vmhgfs-fuse,allow_other
+
+dev="/Windows Desktop"
+mount="${HOME}/Desktop/_Windows Desktop"
+
+mkdir -p "$mount"
+
+/usr/bin/vmhgfs-fuse .host:"$dev" "$mount" -o subtype=vmhgfs-fuse,allow_other

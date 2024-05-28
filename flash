@@ -1,0 +1,9 @@
+#!/bin/bash
+
+LINUX_FILES="${HOME}/Desktop/_Linux Files"
+
+echo "Copying files to desktop..."
+
+cp "${LINUX_FILES}/bootstrap"     "${HOME}/Desktop/"
+cp "${LINUX_FILES}/mount-shares"  "${HOME}/Desktop/"
+cp "${LINUX_FILES}/reverse-flash" "${HOME}/Desktop/"
