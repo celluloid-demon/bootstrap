@@ -602,7 +602,7 @@ from-dnf-install-packages() {
 
     # WARNING: Fedora rootfs partition only has ~20G allocated for it, you've got wiggle room but you should still be relying on flatpaks for most apps
 
-    PACKAGES="byobu code git-core kio-gdrive krfb podman pv rclone tldr tree"
+    PACKAGES="byobu code gh git-core kio-gdrive krfb podman pv rclone tldr tree"
 
 #     todo add package lists for development (NOT kvm, you already have hyper-v)
 
