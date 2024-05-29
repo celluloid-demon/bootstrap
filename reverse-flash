@@ -5,9 +5,9 @@ set -e
 
 FILES_SUBVOL="${HOME}/Desktop/@files"
 
-GIT="${FILES_SUBVOL}/git"
+APPLICATIONS="${FILES_SUBVOL}/Applications"
 
-DIR="${GIT}/bootstrap"
+DIR="${APPLICATIONS}/bootstrap"
 
 echo "Copying files FROM desktop..."
 

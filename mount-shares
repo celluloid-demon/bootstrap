@@ -33,3 +33,20 @@ dev="/To Windows"
 mount="${HOME}/Desktop/To Windows"
 
 mkdir -p "$mount" && /usr/bin/vmhgfs-fuse .host:"$dev" "$mount" -o subtype=vmhgfs-fuse,allow_other
+
+# Windows Desktop (readonly)
+
+dev="/Windows Desktop"
+mount="${HOME}/Desktop/Windows Desktop"
+
+mkdir -p "$mount" && /usr/bin/vmhgfs-fuse .host:"$dev" "$mount" -o subtype=vmhgfs-fuse,allow_other
+
+
+
+
+
+
+
+
+
+
