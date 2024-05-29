@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Exit on error
+set -e
+
 FILES_SUBVOL="${HOME}/Desktop/@files"
 
 GIT="${FILES_SUBVOL}/git"
