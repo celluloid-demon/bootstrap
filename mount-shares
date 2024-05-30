@@ -34,10 +34,10 @@ mount="${HOME}/Desktop/To Windows"
 
 mkdir -p "$mount" && /usr/bin/vmhgfs-fuse .host:"$dev" "$mount" -o subtype=vmhgfs-fuse,allow_other
 
-# Windows Desktop (readonly)
+# Shared Files
 
-dev="/Windows Desktop"
-mount="${HOME}/Desktop/Windows Desktop"
+dev="/Shared Files"
+mount="${HOME}/Desktop/Shared Files"
 
 mkdir -p "$mount" && /usr/bin/vmhgfs-fuse .host:"$dev" "$mount" -o subtype=vmhgfs-fuse,allow_other
 
