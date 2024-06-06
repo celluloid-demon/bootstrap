@@ -11,6 +11,9 @@ CACHE="/cache/jonathan"
 DEBUG=1
 DOCUMENTS="${HOME}/Documents"
 GIT="${HOME}/git"
+WIN_USER="Jonathan"
+
+WIN_HOME="/mnt/c/Users/${WIN_USER}"
 
 # tmp overrides
 APPLICATIONS="${HOME}/applications"
@@ -145,17 +148,42 @@ rpmfusion-check() {
 
 ssh-configure() {
 
-    func="placeholder"
+    # todo this whole thing is finnicky, re-tool this function
+
+    func="ssh-configure"
     
     [ $DEBUG -eq 1 ] && echo $func
 
-    if [ $FLAG_ssh_configured -eq 0 ]; then
+    if [ $FLAG_ssh_configured -eq 0 ] && [ $OS != FEDORA_WSL ]; then
 
         mkdir -p "${DOCUMENTS}/SSH"
 
         ln -s "${DOCUMENTS}/SSH"  "${HOME}/.ssh"
 
+    else
+
+        mkdir -p "${WIN_HOME}/Desktop/SSH"
+
+        ln -s "${WIN_HOME}/Desktop/SSH" "${HOME}/.ssh"
+
+        fix-ssh-permissions
+
     fi
+
+}
+
+fix-ssh-permissions() {
+
+    # todo wsl-based distro needs to be told to use linux-style permissions on windows files from wsl.conf i think
+
+sudo bash -c 'cat >> /etc/wsl.conf <<EOF
+[automount]
+options = "metadata"
+EOF'
+
+    chmod -R 600 "${WIN_HOME}/Desktop/SSH"
+
+    FLAG_restart_required=1
 
 }
 
@@ -816,7 +844,7 @@ packages-install-from-dnf() {
     
     [ $DEBUG -eq 1 ] && echo $func
 
-    PACKAGES_COMMON="byobu gh git-core krfb podman pv tldr tree"
+    PACKAGES_COMMON="byobu gh git-core krfb podman pv rsync tldr tree"
 
     if [ $OS = FEDORA ]; then
 
@@ -1008,6 +1036,46 @@ btrfs-sync-install-from-repo() {
             if [ $OS = STEAMOS ]; then sudo steamos-readonly disable; fi
 
             ./flash
+
+            # lock system
+            if [ $OS = STEAMOS ]; then sudo steamos-readonly enable; fi
+
+            FLAG_restart_required=1
+
+        fi
+        set -e
+
+    fi
+
+}
+
+rsync-helper-scripts-install-from-repo() {
+
+    func="placeholder"
+    
+    [ $DEBUG -eq 1 ] && echo $func
+
+    if [ $OS = FEDORA ] || [ $OS = FEDORA_WSL ]; then
+
+        set +e
+        if ! which btrfs-sync >/dev/null 2>&1; then
+
+            set -e
+
+            url="https://www.github.com/celluloid-demon/rsync-helper-scripts"
+            repo_name="$(basename "$url" .git)"
+
+            cd "$APPLICATIONS"
+
+            git clone "$url"
+
+            cd "$repo_name"
+
+            # unlock system
+            if [ $OS = STEAMOS ]; then sudo steamos-readonly disable; fi
+
+            # todo
+            # ./flash
 
             # lock system
             if [ $OS = STEAMOS ]; then sudo steamos-readonly enable; fi
@@ -1288,6 +1356,8 @@ main() {
     btrfs-snp-install-from-repo
 
     btrfs-sync-install-from-repo
+
+    rsync-helper-scripts-install-from-repo
 
     discord-install-from-web
 
