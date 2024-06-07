@@ -1,0 +1,5 @@
+[Unit]
+Description="dummy service to keep wsl awake"
+
+[Service]
+ExecStart="/usr/local/bin/dummy"

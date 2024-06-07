@@ -11,8 +11,12 @@ CACHE="/cache/jonathan"
 DEBUG=1
 DOCUMENTS="${HOME}/Documents"
 GIT="${HOME}/git"
+SCRIPT_FOLDER="$(dirname "$0")"
+SYSTEM_BIN="/usr/local/bin"
+SYSTEM_UNITS="/etc/systemd/system"
 WIN_USER="Jonathan"
 
+RESOURCES="${SCRIPT_FOLDER}/resources"
 WIN_HOME="/mnt/c/Users/${WIN_USER}"
 
 # tmp overrides
@@ -72,6 +76,8 @@ FLAG_emudeck_installed=0
 FLAG_home_btrfs_configured=0
 FLAG_ssh_configured=0
 FLAG_rpmfusion_configured=0
+FLAG_wsl_configured=0
+FLAG_lightdm_configured=0
 
 rpmfusion-configure() {
 
@@ -160,7 +166,7 @@ ssh-configure() {
 
         ln -s "${DOCUMENTS}/SSH"  "${HOME}/.ssh"
 
-    else
+    elif [ $FLAG_ssh_configured -eq 0 ] && [ $OS = FEDORA_WSL ]; then
 
         mkdir -p "${WIN_HOME}/Desktop/SSH"
 
@@ -838,6 +844,29 @@ packages-install-from-pacman() {
 
 }
 
+lightdm-configure() {
+
+    func="lightdm-configure"
+    
+    [ $DEBUG -eq 1 ] && echo $func
+
+    if which lightdm >/dev/null 2>&1; then
+
+        FLAG_lightdm_configured=1
+
+    fi
+
+    if [ $OS = FEDORA_WSL ] && [ $FLAG_lightdm_configured -eq 0 ]; then
+
+        sudo systemctl disable sddm
+        sudo systemctl enable  lightdm
+
+        FLAG_restart_required=1
+
+    fi
+
+}
+
 packages-install-from-dnf() {
 
     func="packages-install-from-dnf"
@@ -845,6 +874,7 @@ packages-install-from-dnf() {
     [ $DEBUG -eq 1 ] && echo $func
 
     PACKAGES_COMMON="byobu gh git-core krfb podman pv rsync tldr tree"
+    PACKAGES_WSL_ONLY="lightdm xorg-x11-server-Xephyr"
 
     if [ $OS = FEDORA ]; then
 
@@ -872,10 +902,16 @@ packages-install-from-dnf() {
 
     if [ $OS = FEDORA_WSL ]; then
 
+        # reference: https://docs.fedoraproject.org/en-US/quick-docs/switching-desktop-environments/
+
         sudo dnf upgrade -y
-        sudo dnf install -y $PACKAGES_COMMON
+        sudo dnf install -y $PACKAGES_COMMON $PACKAGES_WSL_ONLY
 
         sudo dnf groupinstall -y "Development Tools" "Development Libraries"
+
+        sudo dnf install -y @kde-desktop
+        sudo dnf install -y @kde-desktop-environment
+        sudo dnf groupinstall -y "KDE Plasma Workspaces"
 
     fi
 
@@ -1058,7 +1094,7 @@ rsync-helper-scripts-install-from-repo() {
     if [ $OS = FEDORA ] || [ $OS = FEDORA_WSL ]; then
 
         set +e
-        if ! which btrfs-sync >/dev/null 2>&1; then
+        if ! which rsync-wrapper >/dev/null 2>&1; then
 
             set -e
 
@@ -1298,10 +1334,53 @@ end-step() {
 
 }
 
+configure-wsl() {
+
+    func="configure-wsl"
+    
+    [ $DEBUG -eq 1 ] && echo $func
+
+    config="${WIN_HOME}/.wslconfig"
+
+    if [ -f "$config" ]; then
+
+        FLAG_wsl_configured=1
+
+    fi
+
+    if [ $OS = FEDORA_WSL ] && [ $FLAG_wsl_configured -eq 0 ]; then
+
+cat << EOF | tee "$config"
+[wsl2]
+vmIdleTimeout=-1
+EOF
+
+        # make a dummy systemd service (to be "manually" started by task
+        # scheduler on windows login), this combined with the prior timeout setting will theoretically start wsl in the background and
+        # allow it to keep running for other systemd services, mainly
+        # rsync backup scripts
+        executable="dummy"
+        service="dummy.service"
+
+        sudo cp "${RESOURCES}/${executable}" "${SYSTEM_BIN}/"
+        sudo cp "${RESOURCES}/${service}"    "${SYSTEM_UNITS}/"
+
+        systemd-analyze verify "${SYSTEM_UNITS}/${service}"
+
+        # NOTE: If you'd like to start this service whenever you login to Windows, create a "Scheduled Task" in Windows which runs on Logon and points to wsl.exe with the arguments being -u root -e sh -c "systemctl status dummy || systemctl start dummy"
+
+        FLAG_restart_required=1
+
+    fi
+
+}
+
 main() {
 
     password-check
     password-set
+
+    configure-wsl
 
     home-btrfs-check
     home-btrfs-configure
@@ -1344,6 +1423,8 @@ main() {
 
     git-config-check
     git-configure
+
+    lightdm-configure
 
     ###############################################
     #                                             #
