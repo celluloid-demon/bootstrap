@@ -899,6 +899,40 @@ from-dnf-install-packages() {
 
 }
 
+from-snap-install-packages() {
+
+    func="from-snap-install-packages"
+    
+    [ $DEBUG -eq 1 ] && echo $func
+
+    SNAPS="
+    
+    anki-woodrow
+    folio
+    mediainfo-gui
+    mpv
+    pdfarranger
+    qbittorrent-arnatious
+    rnote
+    shortwave
+    
+    "
+
+    SNAPS_TRANSCODING="
+
+    handbrake-jz    
+    mkvtoolnix-jz
+    
+    "
+
+    if [ $OS = UBUNTU_WSL ]; then
+
+        sudo snap install $SNAPS $SNAPS_TRANSCODING
+
+    fi
+
+}
+
 from-flathub-install-packages() {
 
     func="from-flathub-install-packages"
@@ -988,6 +1022,14 @@ from-flathub-install-packages() {
 
     "
 
+    FLATPAKS_UBUNTU_WSL_ONLY="
+    
+    com.github.tchx84.Flatseal
+    com.google.Chrome
+    io.podman_desktop.PodmanDesktop
+    
+    "
+
 #   (note: discord flatpak deprecated in favor of "full" linux version from website, with screen-sharing, etc)
 #   flatpak install flathub com.discordapp.Discord -y
 
@@ -1015,8 +1057,8 @@ from-flathub-install-packages() {
 
     elif [ $OS = UBUNTU_WSL ]; then
 
-        flatpak update  --user -y
-        flatpak install --user -y flathub $FLATPAKS_COMMON
+        flatpak update  -y
+        flatpak install -y flathub $FLATPAKS_UBUNTU_WSL_ONLY
 
     fi
 
@@ -1367,6 +1409,8 @@ main() {
     ###############################################
 
     from-flathub-install-packages
+
+    from-snap-install-packages
 
     # btrfs-snp-install-from-repo
 
