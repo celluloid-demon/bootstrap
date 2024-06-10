@@ -908,7 +908,9 @@ from-snap-install-packages() {
     SNAPS="
     
     anki-woodrow
+    bing-wall
     folio
+    halftone
     mediainfo-gui
     mpv
     pdfarranger
@@ -920,7 +922,10 @@ from-snap-install-packages() {
 
     SNAPS_TRANSCODING="
 
-    handbrake-jz    
+    ffmpeg
+    filebot
+    handbrake-jz
+    makemkv
     mkvtoolnix-jz
     
     "
@@ -1022,7 +1027,8 @@ from-flathub-install-packages() {
 
     "
 
-    FLATPAKS_UBUNTU_WSL_ONLY="
+    # (NOTE: List of snaps not available as flatpaks / not performant in target environment)
+    FLATPAKS_UBUNTU_WSL_SUPPLEMENTARY="
     
     com.github.tchx84.Flatseal
     com.google.Chrome
@@ -1058,7 +1064,7 @@ from-flathub-install-packages() {
     elif [ $OS = UBUNTU_WSL ]; then
 
         flatpak update  -y
-        flatpak install -y flathub $FLATPAKS_UBUNTU_WSL_ONLY
+        flatpak install -y flathub $FLATPAKS_UBUNTU_WSL_SUPPLEMENTARY
 
     fi
 
