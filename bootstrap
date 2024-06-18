@@ -932,7 +932,14 @@ from-snap-install-packages() {
 
     if [ $OS = UBUNTU_WSL ]; then
 
+        sudo snap refresh
+
+        # (note: workaround for possible snap bug, throws error if multiple pre-installed snaps listed)
+        set +e
+
         sudo snap install $SNAPS $SNAPS_TRANSCODING
+
+        set -e
 
     fi
 
