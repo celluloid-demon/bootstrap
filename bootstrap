@@ -831,20 +831,21 @@ from-pacman-install-packages() {
 
 }
 
-from-apt-install-packages() {
+from_apt_install_packages() {
 
-    func="from-apt-install-packages"
+    func="from_apt_install_packages"
     
     [ $DEBUG -eq 1 ] && echo $func
 
     PACKAGES="byobu flatpak gh git htop podman pv rsync tldr tree"
     PACKAGES_DEV="build-essential"
+    PACKAGES_TRANSCODING="ffmpeg"
 
     if [ $OS = UBUNTU_WSL ]; then
 
         sudo apt update
         sudo apt upgrade -y
-        sudo apt install -y $PACKAGES $PACKAGES_DEV
+        sudo apt install -y $PACKAGES $PACKAGES_DEV $PACKAGES_TRANSCODING
 
     fi
 
@@ -1436,7 +1437,7 @@ main() {
 
     configure-rpmfusion
 
-    from-apt-install-packages
+    from_apt_install_packages
 
     from-dnf-install-packages
 
