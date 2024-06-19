@@ -93,6 +93,7 @@ FLAG_wsl_configured=0
 FLAG_lightdm_configured=0
 FLAG_rsync_helper_scripts_installed=0
 FLAG_discord_installed=0
+FLAG_yt_dlp_installed=0
 
 configure-rpmfusion() {
 
@@ -1201,6 +1202,42 @@ from-repo-install-rsync-helper-scripts() {
 
 }
 
+from_repo_install_yt_dlp() {
+
+    func="from-web-install-discord"
+    
+    [ $DEBUG -eq 1 ] && echo $func
+
+    set +e
+    
+    if which yt-dlp; then
+
+        FLAG_yt_dlp_installed=1
+
+    fi
+
+    set -e
+
+    if [ $FLAG_yt_dlp_installed -eq 1 ]; then
+
+        do_nothing=
+
+    elif [ $OS = UBUNTU_WSL ]; then
+
+        url="https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp"
+
+        mkdir -p "${HOME}/.local/bin"
+
+        curl -L "$url" -o "${HOME}/.local/bin/yt-dlp"
+
+        chmod a+rx "${HOME}/.local/bin/yt-dlp"
+
+        # To update run: `yt-dlp -U`
+
+    fi
+
+}
+
 from-web-install-discord() {
 
     func="from-web-install-discord"
@@ -1430,6 +1467,8 @@ main() {
     # btrfs-sync-install-from-repo
 
     from-repo-install-rsync-helper-scripts
+
+    from_repo_install_yt_dlp
 
     from-web-install-discord
 
