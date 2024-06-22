@@ -15,7 +15,7 @@ DEBUG=0
 #   STEAMOS
 #   UBUNTU_WSL
 
-OS="UBUNTU_WSL"
+OS=FEDORA_WSL
 
 # Declare constants
 APPLICATIONS="${HOME}/Applications"
@@ -319,9 +319,9 @@ EOF
 
 }
 
-configure-git() {
+configure_git() {
 
-    func="configure-git"
+    func="configure_git"
     
     [ $DEBUG -eq 1 ] && echo $func
 
@@ -620,9 +620,9 @@ EOF
 
 }
 
-set-password() {
+set_password() {
 
-    func="set-password"
+    func="set_password"
     
     [ $DEBUG -eq 1 ] && echo $func
 
@@ -634,9 +634,9 @@ set-password() {
 
     elif [ $OS = FEDORA_WSL ]; then
 
-        password_status=$(passwd --status "$USER" | awk '{print $2}')
+        password_status=$(sudo passwd --status "$USER" | awk '{print $2}')
 
-        if [ "$password_status" = "P" ]; then FLAG_password_set=1; fi
+        if [ "$password_status" = "PS" ]; then FLAG_password_set=1; fi
 
     elif [ $OS = STEAMOS ]; then
 
@@ -1414,20 +1414,20 @@ main() {
     #                         #
     ###########################
 
-    set-password
+    set_password
 
-    configure-wsl
+    # configure-wsl
 
-    configure-home-btrfs
+    # configure-home-btrfs
 
-    install-steamos-tweak-cpu
-    install-steamos-tweak-mglru
-    install-steamos-tweak-watchdog
-    install-steamos-tweak-memory
-    install-steamos-tweak-io-scheduler
-    install-steamos-tweak-dragon
+    # install-steamos-tweak-cpu
+    # install-steamos-tweak-mglru
+    # install-steamos-tweak-watchdog
+    # install-steamos-tweak-memory
+    # install-steamos-tweak-io-scheduler
+    # install-steamos-tweak-dragon
 
-    create-steamapps-subvol
+    # create-steamapps-subvol
 
     ######################################
     #                                    #
@@ -1435,13 +1435,13 @@ main() {
     #                                    #
     ######################################
 
-    configure-rpmfusion
+    # configure-rpmfusion
 
-    from_apt_install_packages
+    # from_apt_install_packages
 
-    from-dnf-install-packages
+    # from-dnf-install-packages
 
-    from-pacman-install-packages
+    # from-pacman-install-packages
 
     ##################################
     #                                #
@@ -1449,7 +1449,7 @@ main() {
     #                                #
     ##################################
 
-    configure-git
+    configure_git
 
     ###############################################
     #                                             #
@@ -1459,29 +1459,21 @@ main() {
     #                                             #
     ###############################################
 
-    from-flathub-install-packages
+    # from-flathub-install-packages
 
-    from-snap-install-packages
+    # from-snap-install-packages
 
-    # btrfs-snp-install-from-repo
+    # from-repo-install-rsync-helper-scripts
 
-    # btrfs-sync-install-from-repo
+    # from_repo_install_yt_dlp
 
-    from-repo-install-rsync-helper-scripts
+    # from-web-install-discord
 
-    from_repo_install_yt_dlp
+    # install-shared-config-nix
 
-    from-web-install-discord
+    # configure-ssh
 
-    install-shared-config-nix
-
-    configure-ssh
-
-    # (todo deprecated?)
-    # package-management-helper-scripts-check
-    # package-management-helper-scripts-install
-
-    create-images-subvol
+    # create-images-subvol
 
     the-end
 
