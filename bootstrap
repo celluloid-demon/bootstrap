@@ -55,6 +55,23 @@ if [ $OS = FEDORA ] && [ $do -eq 1 ]; then
 fi
 
 do=1
+if [ $OS = FEDORA_WSL ] && [ $do -eq 1 ]; then
+
+    # NOTE: This setup assumes that the whole of user's home directory, as
+    # well as rootfs, is stored on host boot drive (presumably an SSD), no
+    # optimizations necessary for applications installed locally within $HOME
+
+    # NOTE: deprecated
+    # mkdir -p "${HOME}/Desktop/@applications"
+
+    mkdir -p "$APPLICATIONS"
+    mkdir -p "$GIT"
+
+    # [ ! -d "$APPLICATIONS" ] && ln -s "${HOME}/Desktop/@applications" "$APPLICATIONS"
+
+fi
+
+do=1
 if [ $OS = UBUNTU_WSL ] && [ $do -eq 1 ]; then
 
     # NOTE: This setup assumes that the whole of user's home directory, as
@@ -95,13 +112,13 @@ FLAG_rsync_helper_scripts_installed=0
 FLAG_discord_installed=0
 FLAG_yt_dlp_installed=0
 
-configure-rpmfusion() {
+configure_rpmfusion() {
 
-    func="configure-rpmfusion"
+    func="configure_rpmfusion"
     
     [ $DEBUG -eq 1 ] && echo $func
 
-    if [ $OS = FEDORA ]; then
+    if [ $OS = FEDORA ] || [ $OS = FEDORA_WSL ]; then
 
         repo_list=$(sudo dnf repolist)
 
@@ -113,7 +130,11 @@ configure-rpmfusion() {
 
     fi
 
-    if [ $OS = FEDORA ] && [ $FLAG_rpmfusion_configured -eq 0 ]; then
+    if [ $FLAG_rpmfusion_configured -eq 1 ]; then
+
+        do_nothing=
+
+    elif [ $OS = FEDORA ] || [ $OS = FEDORA_WSL ]; then
 
         # To enable access to both the free and the nonfree repository use the following command:
 
@@ -125,7 +146,8 @@ configure-rpmfusion() {
 
         # RPM Fusion repositories also provide Appstream metadata to enable users to install packages using Gnome Software/KDE Discover. Please note that these are a subset of all packages since the metadata are only generated for GUI packages. The following command will install the required group of packages:
 
-        sudo dnf update -y @core
+        sudo dnf install -y @core
+        # sudo dnf update  -y @core
 
         # Fedora ffmpeg-free works most of the time, but one will experience version missmatch from time to time. Switch to the rpmfusion provided ffmpeg build that is better supported:
 
@@ -133,12 +155,13 @@ configure-rpmfusion() {
 
         # The following command will install the complements multimedia packages needed by gstreamer enabled applications:
 
-        sudo dnf update -y @multimedia --setopt="install_weak_deps=False" --exclude=PackageKit-gstreamer-plugin
+        sudo dnf install -y @multimedia --setopt="install_weak_deps=False" --exclude=PackageKit-gstreamer-plugin
+        # sudo dnf update  -y @multimedia --setopt="install_weak_deps=False" --exclude=PackageKit-gstreamer-plugin
 
         # The following command will install the sound-and-video complement packages needed by some applications:
 
         sudo dnf install -y @sound-and-video
-        sudo dnf update  -y @sound-and-video
+        # sudo dnf update  -y @sound-and-video
 
         # Using the rpmfusion-nonfree section:
 
@@ -160,9 +183,9 @@ configure-rpmfusion() {
 
 }
 
-configure-ssh() {
+configure_ssh() {
 
-    func="configure-ssh"
+    func="configure_ssh"
     
     [ $DEBUG -eq 1 ] && echo $func
 
@@ -179,9 +202,11 @@ configure-ssh() {
         # (read: create location for @ssh filepack, can reverse-clone ssh keys
         # from your file server later)
 
-        mkdir -p "${HOME}/Desktop/@ssh"
+        # mkdir -p "${HOME}/Desktop/@ssh"
+        mkdir -p "${HOME}/.filepacks/@ssh"
 
-        ln -s "${HOME}/Desktop/@ssh"  "${HOME}/.ssh"
+        # ln -s "${HOME}/Desktop/@ssh"  "${HOME}/.ssh"
+        ln -s "${HOME}/.filepacks/@ssh"  "${HOME}/.ssh"
 
     fi
 
@@ -203,9 +228,9 @@ check-emudeck() {
 
 }
 
-create-images-subvol() {
+create_images_subvol() {
 
-    func="create-images-subvol"
+    func="create_images_subvol"
     
     [ $DEBUG -eq 1 ] && echo $func
 
@@ -279,9 +304,9 @@ package-management-helper-scripts-check() {
 
 }
 
-install-shared-config-nix() {
+install_shared_config_nix() {
 
-    func="install-shared-config-nix"
+    func="install_shared_config_nix"
     
     [ $DEBUG -eq 1 ] && echo $func
 
@@ -399,9 +424,9 @@ configure-kvm() {
 
 }
 
-install-steamos-tweak-dragon() {
+install_steamos_tweak_dragon() {
 
-    func="install-steamos-tweak-dragon"
+    func="install_steamos_tweak_dragon"
     
     [ $DEBUG -eq 1 ] && echo $func
 
@@ -451,9 +476,9 @@ install-steamos-tweak-dragon() {
 
 }
 
-install-steamos-tweak-io-scheduler() {
+install_steamos_tweak_io_scheduler() {
 
-    func="placeholder"
+    func="install_steamos_tweak_io_scheduler"
     
     [ $DEBUG -eq 1 ] && echo $func
 
@@ -498,9 +523,9 @@ EOF
 
 }
 
-install-steamos-tweak-memory() {
+install_steamos_tweak_memory() {
 
-    func="placeholder"
+    func="install_steamos_tweak_memory"
     
     [ $DEBUG -eq 1 ] && echo $func
 
@@ -543,9 +568,9 @@ EOF
 
 }
 
-install-steamos-tweak-watchdog() {
+install_steamos_tweak_watchdog() {
 
-    func="install-steamos-tweak-watchdog"
+    func="install_steamos_tweak_watchdog"
     
     [ $DEBUG -eq 1 ] && echo $func
 
@@ -581,9 +606,9 @@ install-steamos-tweak-watchdog() {
 
 }
 
-install-steamos-tweak-mglru() {
+install_steamos_tweak_mglru() {
 
-    func="placeholder"
+    func="install_steamos_tweak_mglru"
     
     [ $DEBUG -eq 1 ] && echo $func
 
@@ -660,9 +685,9 @@ set_password() {
 
 }
 
-install-steamos-tweak-cpu() {
+install_steamos_tweak_cpu() {
 
-    func="install-steamos-tweak-cpu"
+    func="install_steamos_tweak_cpu"
     
     [ $DEBUG -eq 1 ] && echo $func
 
@@ -715,9 +740,9 @@ EOF
 
 }
 
-configure-home-btrfs() {
+configure_home_btrfs() {
 
-    func="configure-home-btrfs"
+    func="configure_home_btrfs"
     
     [ $DEBUG -eq 1 ] && echo $func
 
@@ -789,9 +814,9 @@ install-steamos-btrfs() {
 
 }
 
-from-pacman-install-packages() {
+from_pacman_install_packages() {
 
-    func="from-pacman-install-packages"
+    func="from_pacman_install_packages"
     
     [ $DEBUG -eq 1 ] && echo $func
 
@@ -851,14 +876,14 @@ from_apt_install_packages() {
 
 }
 
-from-dnf-install-packages() {
+from_dnf_install_packages() {
 
-    func="from-dnf-install-packages"
+    func="from_dnf_install_packages"
     
     [ $DEBUG -eq 1 ] && echo $func
 
-    PACKAGES_COMMON="byobu gh git-core krfb podman pv rsync tldr tree"
-    PACKAGES_WSL_ONLY="lightdm xorg-x11-server-Xephyr"
+    PACKAGES_COMMON="byobu gh git krfb pv rsync tldr tree"
+    PACKAGES_WSL_ONLY="lightdm"
 
     if [ $OS = FEDORA ]; then
 
@@ -893,17 +918,17 @@ from-dnf-install-packages() {
 
         sudo dnf groupinstall -y "Development Tools" "Development Libraries"
 
-        sudo dnf install -y @kde-desktop
-        sudo dnf install -y @kde-desktop-environment
+        # sudo dnf install -y @kde-desktop
+        # sudo dnf install -y @kde-desktop-environment
         sudo dnf groupinstall -y "KDE Plasma Workspaces"
 
     fi
 
 }
 
-from-snap-install-packages() {
+from_snap_install_packages() {
 
-    func="from-snap-install-packages"
+    func="from_snap_install_packages"
     
     [ $DEBUG -eq 1 ] && echo $func
 
@@ -947,9 +972,9 @@ from-snap-install-packages() {
 
 }
 
-from-flathub-install-packages() {
+from_flathub_install_packages() {
 
-    func="from-flathub-install-packages"
+    func="from_flathub_install_packages"
     
     [ $DEBUG -eq 1 ] && echo $func
 
@@ -1157,9 +1182,9 @@ btrfs-sync-install-from-repo() {
 
 }
 
-from-repo-install-rsync-helper-scripts() {
+from_repo_install_rsync_helper_scripts() {
 
-    func="from-repo-install-rsync-helper-scripts"
+    func="from_repo_install_rsync_helper_scripts"
     
     [ $DEBUG -eq 1 ] && echo $func
 
@@ -1205,7 +1230,7 @@ from-repo-install-rsync-helper-scripts() {
 
 from_repo_install_yt_dlp() {
 
-    func="from-web-install-discord"
+    func="from_repo_install_yt_dlp"
     
     [ $DEBUG -eq 1 ] && echo $func
 
@@ -1223,7 +1248,7 @@ from_repo_install_yt_dlp() {
 
         do_nothing=
 
-    elif [ $OS = UBUNTU_WSL ]; then
+    elif [ $OS = FEDORA_WSL ] || [ $OS = UBUNTU_WSL ]; then
 
         url="https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp"
 
@@ -1239,9 +1264,9 @@ from_repo_install_yt_dlp() {
 
 }
 
-from-web-install-discord() {
+from_web_install_discord() {
 
-    func="from-web-install-discord"
+    func="from_web_install_discord"
     
     [ $DEBUG -eq 1 ] && echo $func
 
@@ -1297,9 +1322,9 @@ from-web-get-emudeck-installer() {
 
 }
 
-create-steamapps-subvol() {
+create_steamapps_subvol() {
 
-    func="placeholder"
+    func="create_steamapps_subvol"
     
     [ $DEBUG -eq 1 ] && echo $func
 
@@ -1339,9 +1364,9 @@ create-steamapps-subvol() {
 
 }
 
-the-end() {
+exit_zero() {
 
-    func="placeholder"
+    func="exit_zero"
     
     [ $DEBUG -eq 1 ] && echo $func
 
@@ -1363,9 +1388,9 @@ the-end() {
 
 }
 
-configure-wsl() {
+configure_wsl() {
 
-    func="configure-wsl"
+    func="configure_wsl"
     
     [ $DEBUG -eq 1 ] && echo $func
 
@@ -1416,18 +1441,18 @@ main() {
 
     set_password
 
-    # configure-wsl
+    configure_wsl
 
-    # configure-home-btrfs
+    configure_home_btrfs
 
-    # install-steamos-tweak-cpu
-    # install-steamos-tweak-mglru
-    # install-steamos-tweak-watchdog
-    # install-steamos-tweak-memory
-    # install-steamos-tweak-io-scheduler
-    # install-steamos-tweak-dragon
+    install_steamos_tweak_cpu
+    install_steamos_tweak_mglru
+    install_steamos_tweak_watchdog
+    install_steamos_tweak_memory
+    install_steamos_tweak_io_scheduler
+    install_steamos_tweak_dragon
 
-    # create-steamapps-subvol
+    create_steamapps_subvol
 
     ######################################
     #                                    #
@@ -1435,13 +1460,13 @@ main() {
     #                                    #
     ######################################
 
-    # configure-rpmfusion
+    configure_rpmfusion
 
-    # from_apt_install_packages
+    from_apt_install_packages
 
-    # from-dnf-install-packages
+    from_dnf_install_packages
 
-    # from-pacman-install-packages
+    from_pacman_install_packages
 
     ##################################
     #                                #
@@ -1459,23 +1484,23 @@ main() {
     #                                             #
     ###############################################
 
-    # from-flathub-install-packages
+    from_flathub_install_packages
 
-    # from-snap-install-packages
+    from_snap_install_packages
 
-    # from-repo-install-rsync-helper-scripts
+    from_repo_install_rsync_helper_scripts
 
-    # from_repo_install_yt_dlp
+    from_repo_install_yt_dlp
 
-    # from-web-install-discord
+    from_web_install_discord
 
-    # install-shared-config-nix
+    install_shared_config_nix
 
-    # configure-ssh
+    configure_ssh
 
-    # create-images-subvol
+    create_images_subvol
 
-    the-end
+    exit_zero
 
 }
 
