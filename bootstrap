@@ -882,7 +882,7 @@ from_dnf_install_packages() {
     
     [ $DEBUG -eq 1 ] && echo $func
 
-    PACKAGES_COMMON="byobu gh git krfb pv rsync tldr tree"
+    PACKAGES_COMMON="byobu gh git krfb nano pv rsync tldr tree"
     PACKAGES_WSL_ONLY="lightdm"
 
     if [ $OS = FEDORA ]; then
